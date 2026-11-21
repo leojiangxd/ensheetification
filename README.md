@@ -10,7 +10,19 @@ Upload an audio file or paste a YouTube link, pick a difficulty level, and enshe
 
 The output is an *arrangement*, not a raw transcription: the melody is preserved, the harmony is re-voiced for piano, and every bar is checked to be playable by two human hands at the level you chose.
 
-> **Status:** design phase. This README describes the target architecture. Sections marked *planned* describe intended behavior that is not built yet.
+> **Status:** MVP (roadmap step 1). The rest of this README describes the target architecture; sections marked *planned* are not built yet.
+
+## Quick start
+
+Needs [`uv`](https://docs.astral.sh/uv/) and `ffmpeg` on your PATH.
+
+```sh
+uv sync
+uv run ensheet song.mp3 -o out/   # writes out/song.mid, out/song.musicxml, out/song.pdf
+uv run pytest
+```
+
+The MVP transcribes the whole mix with [basic-pitch](https://github.com/spotify/basic-pitch) (CPU), quantizes to a sixteenth grid (`--grid 4|8|16`), splits hands at middle C, and engraves the PDF with Verovio. No separation, levels, or playability check yet.
 
 ---
 
