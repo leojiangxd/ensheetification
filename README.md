@@ -18,7 +18,7 @@ Needs [`uv`](https://docs.astral.sh/uv/) and `ffmpeg` on your PATH.
 
 ```sh
 uv sync
-uv run ensheet song.mp3 -o out/   # writes out/song.mid, out/song.musicxml, out/song.pdf
+uv run ensheet songs/song.mp3 -o out/   # songs/ is git-ignored; writes out/song.{mid,musicxml,pdf}
 uv run pytest
 ```
 

@@ -1,4 +1,5 @@
 """MVP pipeline: decode -> transcribe -> quantize -> export."""
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -77,6 +78,24 @@ def quantize(notes, bpm: float, offset: float = 0.0, grid: int = 16) -> stream.S
     return score
 
 
+def _flatten_text(m: re.Match) -> str:
+    """Collapse Verovio's positioned, nested <tspan>s into one <text>.
+
+    svglib ignores x/y on <tspan> (title drawn at x=0, cut off) and centres each
+    tspan on its own (page header "– 2 –" drawn on top of itself).
+    """
+    body = m.group(0)
+    leaves = re.findall(r'<tspan font-size="([^"]+)">([^<]*)</tspan>', re.sub(r"<title.*?</title>", "", body, flags=re.S))
+    if not leaves:
+        return body
+    pos = {}
+    for k, v in re.findall(r'\b(x|y|text-anchor)="([^"]*)"', body):
+        pos.setdefault(k, v)  # first occurrence wins
+    attrs = " ".join(f'{k}="{v}"' for k, v in pos.items())
+    words = "".join(t for _, t in leaves).strip()  # already XML-escaped by Verovio
+    return f'<text {attrs} font-size="{leaves[0][0]}">{words}</text>'
+
+
 def export(score: stream.Score, out_dir: Path, stem: str) -> list[Path]:
     """Write .musicxml, .mid and .pdf; return their paths."""
     import verovio
@@ -91,13 +110,24 @@ def export(score: stream.Score, out_dir: Path, stem: str) -> list[Path]:
     pdf = out_dir / f"{stem}.pdf"
 
     tk = verovio.toolkit()
+    # 10 mm on every side of A4; Verovio's default is 5 mm
+    tk.setOptions({f"pageMargin{side}": 100 for side in ("Top", "Bottom", "Left", "Right")})
+    tk.setOptions({"footer": "none"})
     if not tk.loadFile(str(xml)):
         raise RuntimeError("verovio could not load the MusicXML")
     c = canvas.Canvas(str(pdf))
     with tempfile.TemporaryDirectory() as tmp:
         for page in range(1, tk.getPageCount() + 1):
             svg = Path(tmp) / f"{page}.svg"
-            svg.write_text(tk.renderToSVG(page), encoding="utf-8")
+            text = re.sub(r"<text [^>]*>\s*<tspan [^>]*\bx=.*?</text>", _flatten_text, tk.renderToSVG(page), flags=re.S)
+            # svglib applies px->pt twice to a nested <svg>, shrinking the score to 75%; merge the inner viewBox into the outer svg
+            text = re.sub(r'(<svg [^>]*?)>(\s*<desc>.*?</desc>.*?)<svg class="definition-scale"([^>]*?) (viewBox="[^"]*")>',
+                          r'\1 \4>\2<g\3>', text, count=1, flags=re.S)
+            text = text[: text.rindex("</svg>", 0, text.rindex("</svg>"))] + "</g></svg>"
+            # shortcut: Verovio's Windows build emits its page-number dash "–" as mojibake "â€“"; fix that one string,
+            # upgrade if other Verovio-generated text shows up garbled
+            text = text.replace("â€“", "–")
+            svg.write_text(text, encoding="utf-8")
             drawing = svg2rlg(str(svg))
             c.setPageSize((drawing.width, drawing.height))
             renderPDF.draw(drawing, c, 0, 0)
