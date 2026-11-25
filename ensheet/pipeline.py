@@ -11,9 +11,9 @@ SR = 22050
 SPLIT_PITCH = 60  # middle C: >= goes to right hand
 
 
-def decode(path: Path) -> Path:
-    """Decode any ffmpeg-readable file to a mono WAV in a temp dir."""
-    wav = Path(tempfile.mkdtemp()) / "audio.wav"
+def decode(path: Path, tmp_dir: Path) -> Path:
+    """Decode any ffmpeg-readable file to a mono WAV in tmp_dir."""
+    wav = tmp_dir / "audio.wav"
     subprocess.run(
         ["ffmpeg", "-v", "error", "-y", "-i", str(path), "-ac", "1", "-ar", str(SR), str(wav)],
         check=True,
@@ -137,7 +137,8 @@ def export(score: stream.Score, out_dir: Path, stem: str) -> list[Path]:
 
 
 def run(path: Path, out_dir: Path, grid: int = 16) -> list[Path]:
-    wav = decode(path)
-    bpm, first_beat = estimate_beats(wav)
-    score = quantize(transcribe(wav), bpm, first_beat, grid)
-    return export(score, out_dir, path.stem)
+    with tempfile.TemporaryDirectory() as tmp:
+        wav = decode(path, Path(tmp))
+        bpm, first_beat = estimate_beats(wav)
+        notes = transcribe(wav)
+    return export(quantize(notes, bpm, first_beat, grid), out_dir, path.stem)

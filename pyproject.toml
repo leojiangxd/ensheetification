@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "basic-pitch[onnx]",
+    "librosa",
+    "soundfile",
     "music21",
     "verovio",
     "svglib",
