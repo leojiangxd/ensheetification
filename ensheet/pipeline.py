@@ -1,4 +1,4 @@
-"""MVP pipeline: decode -> transcribe -> quantize -> export."""
+"""MVP pipeline: decode -> estimate beats -> transcribe -> quantize -> export."""
 import re
 import subprocess
 import tempfile
@@ -11,9 +11,16 @@ SR = 22050
 SPLIT_PITCH = 60  # middle C: >= goes to right hand
 
 
-def decode(path: Path, tmp_dir: Path) -> Path:
-    """Decode any ffmpeg-readable file to a mono WAV in tmp_dir."""
-    wav = tmp_dir / "audio.wav"
+def run(path: Path, out_dir: Path, grid: int = 16) -> list[Path]:
+    wav = decode(path)
+    bpm, first_beat = estimate_beats(wav)
+    score = quantize(transcribe(wav), bpm, first_beat, grid)
+    return export(score, out_dir, path.stem)
+
+
+def decode(path: Path) -> Path:
+    """Decode any ffmpeg-readable file to a mono WAV in a temp dir."""
+    wav = Path(tempfile.mkdtemp()) / "audio.wav"
     subprocess.run(
         ["ffmpeg", "-v", "error", "-y", "-i", str(path), "-ac", "1", "-ar", str(SR), str(wav)],
         check=True,
@@ -25,14 +32,6 @@ def decode(path: Path, tmp_dir: Path) -> Path:
     return wav
 
 
-def transcribe(wav: Path) -> list[tuple[float, float, int, float]]:
-    """Return (start_s, end_s, midi_pitch, amplitude 0-1) note events."""
-    from basic_pitch.inference import predict
-
-    _, _, events = predict(str(wav))
-    return [(s, e, int(p), float(a)) for s, e, p, a, _bends in events]
-
-
 def estimate_beats(wav: Path) -> tuple[float, float]:
     """Return (bpm, first_beat_seconds)."""
     import librosa
@@ -41,6 +40,14 @@ def estimate_beats(wav: Path) -> tuple[float, float]:
     bpm, beats = librosa.beat.beat_track(y=y, sr=sr, units="time")
     bpm = float(bpm[0] if hasattr(bpm, "__len__") else bpm) or 120.0
     return bpm, float(beats[0]) if len(beats) else 0.0
+
+
+def transcribe(wav: Path) -> list[tuple[float, float, int, float]]:
+    """Return (start_s, end_s, midi_pitch, amplitude 0-1) note events."""
+    from basic_pitch.inference import predict
+
+    _, _, events = predict(str(wav))
+    return [(s, e, int(p), float(a)) for s, e, p, a, _bends in events]
 
 
 def quantize(notes, bpm: float, offset: float = 0.0, grid: int = 16) -> stream.Score:
@@ -76,24 +83,6 @@ def quantize(notes, bpm: float, offset: float = 0.0, grid: int = 16) -> stream.S
         part.makeRests(fillGaps=True, inPlace=True)
         score.insert(0, part)
     return score
-
-
-def _flatten_text(m: re.Match) -> str:
-    """Collapse Verovio's positioned, nested <tspan>s into one <text>.
-
-    svglib ignores x/y on <tspan> (title drawn at x=0, cut off) and centres each
-    tspan on its own (page header "– 2 –" drawn on top of itself).
-    """
-    body = m.group(0)
-    leaves = re.findall(r'<tspan font-size="([^"]+)">([^<]*)</tspan>', re.sub(r"<title.*?</title>", "", body, flags=re.S))
-    if not leaves:
-        return body
-    pos = {}
-    for k, v in re.findall(r'\b(x|y|text-anchor)="([^"]*)"', body):
-        pos.setdefault(k, v)  # first occurrence wins
-    attrs = " ".join(f'{k}="{v}"' for k, v in pos.items())
-    words = "".join(t for _, t in leaves).strip()  # already XML-escaped by Verovio
-    return f'<text {attrs} font-size="{leaves[0][0]}">{words}</text>'
 
 
 def export(score: stream.Score, out_dir: Path, stem: str) -> list[Path]:
@@ -136,9 +125,19 @@ def export(score: stream.Score, out_dir: Path, stem: str) -> list[Path]:
     return [mid, xml, pdf]
 
 
-def run(path: Path, out_dir: Path, grid: int = 16) -> list[Path]:
-    with tempfile.TemporaryDirectory() as tmp:
-        wav = decode(path, Path(tmp))
-        bpm, first_beat = estimate_beats(wav)
-        notes = transcribe(wav)
-    return export(quantize(notes, bpm, first_beat, grid), out_dir, path.stem)
+def _flatten_text(m: re.Match) -> str:
+    """Collapse Verovio's positioned, nested <tspan>s into one <text>.
+
+    svglib ignores x/y on <tspan> (title drawn at x=0, cut off) and centres each
+    tspan on its own (page header "– 2 –" drawn on top of itself).
+    """
+    body = m.group(0)
+    leaves = re.findall(r'<tspan font-size="([^"]+)">([^<]*)</tspan>', re.sub(r"<title.*?</title>", "", body, flags=re.S))
+    if not leaves:
+        return body
+    pos = {}
+    for k, v in re.findall(r'\b(x|y|text-anchor)="([^"]*)"', body):
+        pos.setdefault(k, v)  # first occurrence wins
+    attrs = " ".join(f'{k}="{v}"' for k, v in pos.items())
+    words = "".join(t for _, t in leaves).strip()  # already XML-escaped by Verovio
+    return f'<text {attrs} font-size="{leaves[0][0]}">{words}</text>'
