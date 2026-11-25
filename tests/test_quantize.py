@@ -12,11 +12,11 @@ def test_quantize_snaps_and_splits_hands():
         (0.0, 1.0, 43, 0.6),    # LH, same onset -> chord
     ]
     score = quantize(notes, bpm=60)
-    rh, lh = score.parts
-    rh_notes = list(rh.flatten().notes)
-    lh_notes = list(lh.flatten().notes)
+    right_hand, left_hand = score.parts
+    right_hand_notes = list(right_hand.flatten().notes)
+    left_hand_notes = list(left_hand.flatten().notes)
 
-    assert [(n.offset, n.quarterLength, n.pitch.midi) for n in rh_notes] == [(0.0, 0.5, 72), (0.5, 0.25, 64)]
-    assert len(lh_notes) == 1 and [p.midi for p in lh_notes[0].pitches] == [43, 48]
-    assert lh_notes[0].quarterLength == 2.0
-    assert all(p.midi >= 60 for n in rh_notes for p in n.pitches)
+    assert [(played.offset, played.quarterLength, played.pitch.midi) for played in right_hand_notes] == [(0.0, 0.5, 72), (0.5, 0.25, 64)]
+    assert len(left_hand_notes) == 1 and [pitch.midi for pitch in left_hand_notes[0].pitches] == [43, 48]
+    assert left_hand_notes[0].quarterLength == 2.0
+    assert all(pitch.midi >= 60 for played in right_hand_notes for pitch in played.pitches)

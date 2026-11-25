@@ -5,15 +5,15 @@ from ensheet.pipeline import run
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(prog="ensheet", description="Audio file -> piano MIDI, MusicXML and PDF.")
-    ap.add_argument("audio", type=Path)
-    ap.add_argument("-o", "--out", type=Path, default=Path("out"))
-    ap.add_argument("--grid", type=int, default=16, choices=[4, 8, 16], help="quantize grid (16 = sixteenths)")
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser(prog="ensheet", description="Audio file -> piano MIDI, MusicXML and PDF.")
+    parser.add_argument("audio", type=Path)
+    parser.add_argument("-o", "--out", type=Path, default=Path("out"))
+    parser.add_argument("--grid", type=int, default=16, choices=[4, 8, 16], help="quantize grid (16 = sixteenths)")
+    args = parser.parse_args()
     if not args.audio.is_file():
-        ap.error(f"no such file: {args.audio}")
-    for p in run(args.audio, args.out, args.grid):
-        print(p)
+        parser.error(f"no such file: {args.audio}")
+    for output_path in run(args.audio, args.out, args.grid):
+        print(output_path)
 
 
 if __name__ == "__main__":
