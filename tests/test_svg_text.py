@@ -13,5 +13,5 @@ HEADER = (
 
 
 def test_flatten_text_merges_header_into_one_positioned_string():
-    out = re.sub(r"<text [^>]*>\s*<tspan [^>]*\bx=.*?</text>", _flatten_text, HEADER, flags=re.S)
-    assert out == '<text x="10000" y="219" text-anchor="middle" font-size="324px">– 2 –</text>'
+    flattened = re.sub(r"<text [^>]*>\s*<tspan [^>]*\bx=.*?</text>", _flatten_text, HEADER, flags=re.S)
+    assert flattened == '<text x="10000" y="219" text-anchor="middle" font-size="324px">– 2 –</text>'

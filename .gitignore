@@ -1,5 +1,5 @@
 .venv/
+in/
 out/
 __pycache__/
 *.egg-info/
-songs/
