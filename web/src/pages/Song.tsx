@@ -34,6 +34,10 @@ function Body({ upload, onRetried }: { upload: Upload; onRetried: () => void }) 
         <button type="button" className="primary play" onClick={() => alert('Coming soon: this will play the arrangement and scroll the score along with it.')}>
           Play
         </button>
+        <div className="downloads" role="group" aria-label="Download">          <a href={fileUrl(upload, 'pdf')} download className="secondary">PDF</a>
+          <a href={fileUrl(upload, 'midi')} download className="secondary">MIDI</a>
+          <a href={fileUrl(upload, 'musicxml')} download className="secondary">MusicXML</a>
+        </div>
       </div>
       <object className="score-pdf" data={fileUrl(upload, 'pdf')} type="application/pdf" aria-label="Sheet music">
         <p className="notice">
@@ -136,20 +140,11 @@ export function Song() {
         ) : (
           <>
             <Title upload={upload} onRenamed={reload} />
-            <div className="song-head">
-              <dl className="song-meta">
-                <div><dt>Level</dt><dd>{upload.level} {LEVELS[upload.level - 1].name}</dd></div>
-                <div><dt>Uploaded</dt><dd><time dateTime={upload.created_at}>{formatDate(new Date(upload.created_at))}</time></dd></div>
-                <div><dt>Status</dt><dd className={upload.status === 'failed' ? 'status-failed' : undefined}>{STATUS_LABEL[upload.status]}</dd></div>
-              </dl>
-              {upload.status === 'ready' && (
-                <div className="actions">
-                  <a href={fileUrl(upload, 'midi')} download className="secondary">MIDI</a>
-                  <a href={fileUrl(upload, 'pdf')} download className="secondary">PDF</a>
-                  <a href={fileUrl(upload, 'musicxml')} download className="secondary">MusicXML</a>
-                </div>
-              )}
-            </div>
+            <dl className="song-meta">
+              <div><dt>Level</dt><dd>{upload.level} {LEVELS[upload.level - 1].name}</dd></div>
+              <div><dt>Uploaded</dt><dd><time dateTime={upload.created_at}>{formatDate(new Date(upload.created_at))}</time></dd></div>
+              <div><dt>Status</dt><dd className={upload.status === 'failed' ? 'status-failed' : undefined}>{STATUS_LABEL[upload.status]}</dd></div>
+            </dl>
             <Body upload={upload} onRetried={reload} />
           </>
         )}
