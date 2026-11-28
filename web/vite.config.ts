@@ -5,7 +5,9 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
-    // same origin in dev, so the API's session cookie just works
-    proxy: { '/api': 'http://localhost:8000' },
+    // explicit IPv4: "localhost" makes Vite listen on ::1 only
+    host: '127.0.0.1',
+    // same origin in dev, so the API's session cookie just works; uvicorn listens on 127.0.0.1 by default
+    proxy: { '/api': 'http://127.0.0.1:8000' },
   },
 })
