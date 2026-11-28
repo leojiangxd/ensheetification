@@ -32,7 +32,7 @@ export function Landing() {
 
         <section className="section wrap" id="levels" aria-labelledby="levels-title">
           <h2 id="levels-title">Five levels, from first lessons to full voicings</h2>
-          <table className="level-table">
+          <table className="data-table">
             <thead>
               <tr>
                 <th scope="col">Level</th>

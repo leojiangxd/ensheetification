@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router'
+import { Link, NavLink, useLocation } from 'react-router'
 
 export function Header() {
   const onAuthPage = ['/login', '/register'].includes(useLocation().pathname)
@@ -10,7 +10,10 @@ export function Header() {
         <a href="/#how">How it works</a>
         <a href="/#outputs">What you get</a>
       </nav>
-      {!onAuthPage && <Link to="/login" className="secondary header-cta">Log in</Link>}
+      <div className="header-end">
+        <NavLink to="/songs" className="header-link">My songs</NavLink>
+        {!onAuthPage && <Link to="/login" className="secondary">Log in</Link>}
+      </div>
     </header>
   )
 }
