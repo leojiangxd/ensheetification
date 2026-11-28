@@ -1,3 +1,5 @@
+import { request } from './api'
+
 /** A job as returned by the API (api/db.py JOB_FIELDS). */
 export type Upload = {
   id: string
@@ -23,8 +25,22 @@ export function youTubeId(url: string) {
   return u.searchParams.get('v') ?? u.pathname.slice(1)
 }
 
-/** Files show their name without the extension; a YouTube job still showing its raw URL (before the video title is known) gets a short form. */
+/** Same as MAX_TITLE in api/app.py. */
+export const MAX_TITLE = 200
+
+/** A YouTube job still showing its raw URL (before the video title is known) gets a short form. */
 export function displayName(u: Upload) {
-  if (u.source_kind === 'file') return u.title.replace(/\.[^.]+$/, '')
   return u.source_url && u.title === u.source_url ? `youtu.be/${youTubeId(u.source_url)}` : u.title
+}
+
+/** Asks for confirmation, then deletes. Returns whether it was deleted; shows failures in an alert. */
+export async function deleteUpload(u: Upload) {
+  if (!confirm(`Delete "${displayName(u)}"? Its sheet music and files are removed for good.`)) return false
+  try {
+    await request(`/jobs/${u.id}`, { method: 'DELETE' })
+    return true
+  } catch (error) {
+    alert((error as Error).message)
+    return false
+  }
 }

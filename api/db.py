@@ -124,6 +124,17 @@ def update_job(job_id: str, **fields: object) -> None:
         connection.execute(f"UPDATE jobs SET {assignments} WHERE id = ?", (*fields.values(), job_id))
 
 
+def set_video_title(job_id: str, title: str) -> None:
+    """Replaces the placeholder title (the url) only, so a name the user gave or renamed to is kept."""
+    with connect() as connection:
+        connection.execute("UPDATE jobs SET title = ? WHERE id = ? AND title = source_url", (title, job_id))
+
+
+def delete_job(job_id: str) -> None:
+    with connect() as connection:
+        connection.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+
+
 def requeue_unfinished() -> list[str]:
     """After a restart, jobs that were queued or mid-run go back to queued; returns their ids, oldest first."""
     with connect() as connection:

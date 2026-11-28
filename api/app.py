@@ -16,6 +16,7 @@ from api import auth, db, worker
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 CHUNK_BYTES = 1024 * 1024
 FILE_KINDS = {"midi": ".mid", "musicxml": ".musicxml", "pdf": ".pdf"}
+MAX_TITLE = 200  # keep in sync with maxLength in web/src
 
 
 @asynccontextmanager
@@ -39,6 +40,19 @@ class Registration(BaseModel):
 class Credentials(BaseModel):
     email: str
     password: str
+
+
+class Rename(BaseModel):
+    title: str
+
+
+def _clean_title(title: str) -> str:
+    title = " ".join(title.split())
+    if not title:
+        raise HTTPException(status_code=400, detail="Enter a name for this song.")
+    if len(title) > MAX_TITLE:
+        raise HTTPException(status_code=400, detail=f"Names can be at most {MAX_TITLE} characters.")
+    return title
 
 
 def _log_in(response: Response, user_id: str) -> None:
@@ -109,6 +123,7 @@ def _save_upload(file: UploadFile, out_dir: Path) -> None:
 def create_job(
     user: CurrentUser,
     level: Annotated[int, Form()],
+    title: Annotated[str | None, Form()] = None,
     url: Annotated[str | None, Form()] = None,
     file: Annotated[UploadFile | None, File()] = None,
 ) -> dict:
@@ -121,6 +136,7 @@ def create_job(
         raise HTTPException(status_code=400, detail="Pick a difficulty from 1 to 5.")
     if url and not is_youtube_url(url):
         raise HTTPException(status_code=400, detail="That is not a YouTube link. Paste one like https://www.youtube.com/watch?v=...")
+    title = _clean_title(title) if title and title.strip() else None
 
     job_id = db.new_id()
     out_dir = db.job_dir(job_id)
@@ -132,9 +148,9 @@ def create_job(
         shutil.rmtree(out_dir, ignore_errors=True)
         raise
     if file is not None:
-        title, kind = Path(file.filename or "").name or "Untitled", "file"
+        title, kind = title or Path(file.filename or "").stem or "Untitled", "file"
     else:
-        title, kind = url, "youtube"  # the worker replaces this with the video title
+        title, kind = title or url, "youtube"  # a title still equal to the url gets replaced by the video title
     job = db.create_job(user["id"], title, kind, url, level, job_id)
     worker.enqueue(job_id)
     return job
@@ -157,6 +173,22 @@ def get_job(job_id: str, user: CurrentUser) -> dict:
     return _own_job(job_id, user)
 
 
+@router.patch("/jobs/{job_id}")
+def rename_job(job_id: str, body: Rename, user: CurrentUser) -> dict:
+    _own_job(job_id, user)
+    db.update_job(job_id, title=_clean_title(body.title))
+    return _own_job(job_id, user)
+
+
+@router.delete("/jobs/{job_id}", status_code=204)
+def delete_job(job_id: str, user: CurrentUser) -> None:
+    # the pipeline recreates its output folder, so a running job can't be removed from under it
+    if _own_job(job_id, user)["status"] == "arranging":
+        raise HTTPException(status_code=409, detail="This song is being arranged. Delete it once it finishes.")
+    db.delete_job(job_id)
+    shutil.rmtree(db.job_dir(job_id), ignore_errors=True)
+
+
 @router.post("/jobs/{job_id}/retry")
 def retry_job(job_id: str, user: CurrentUser) -> dict:
     if _own_job(job_id, user)["status"] != "failed":
@@ -172,9 +204,8 @@ def download(job_id: str, kind: str, user: CurrentUser) -> FileResponse:
     path = db.job_dir(job_id) / f"source{FILE_KINDS.get(kind, '')}"
     if kind not in FILE_KINDS or job["status"] != "ready" or not path.is_file():
         raise HTTPException(status_code=404, detail="File not found.")
-    base = Path(job["title"]).stem if job["source_kind"] == "file" else job["title"]
     # inline so the PDF can be embedded on the song page; <a download> still saves it with this name
-    return FileResponse(path, filename=f"{base}{FILE_KINDS[kind]}", content_disposition_type="inline")
+    return FileResponse(path, filename=f"{job['title']}{FILE_KINDS[kind]}", content_disposition_type="inline")
 
 
 app.include_router(router)

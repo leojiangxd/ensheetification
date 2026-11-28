@@ -2,7 +2,7 @@ import { useId, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { ApiError, request } from '../api'
 import { LEVELS } from '../content'
-import type { Upload } from '../uploads'
+import { MAX_TITLE, type Upload } from '../uploads'
 import { GrandStaff } from './GrandStaff'
 
 function isYouTubeUrl(value: string) {
@@ -17,6 +17,7 @@ function isYouTubeUrl(value: string) {
 export function SubmitForm({ level, onLevelChange }: { level: number; onLevelChange: (n: number) => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [url, setUrl] = useState('')
+  const [title, setTitle] = useState('')
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -45,6 +46,7 @@ export function SubmitForm({ level, onLevelChange }: { level: number; onLevelCha
     setError('')
     const form = new FormData()
     form.set('level', String(level))
+    if (title.trim()) form.set('title', title.trim())
     if (file) form.set('file', file)
     else form.set('url', link)
     setBusy(true)
@@ -91,6 +93,17 @@ export function SubmitForm({ level, onLevelChange }: { level: number; onLevelCha
         onChange={(e) => { setUrl(e.target.value); if (e.target.value) clearFile(); setError('') }}
         aria-describedby={error ? `${ids}-error` : undefined}
         aria-invalid={!!error}
+      />
+
+      <label className="field-label" htmlFor={`${ids}-title`}>Name <span className="optional">(optional)</span></label>
+      <input
+        id={`${ids}-title`}
+        className="text-input"
+        type="text"
+        maxLength={MAX_TITLE}
+        placeholder={file ? file.name.replace(/\.[^.]+$/, '') : 'Uses the file name or video title'}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
       />
 
       <fieldset className="levels">

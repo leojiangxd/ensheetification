@@ -1,8 +1,9 @@
-import { Link, Navigate, useParams } from 'react-router'
+import { useState, type FormEvent } from 'react'
+import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { request, usePolled } from '../api'
 import { Header } from '../components/Header'
 import { LEVELS } from '../content'
-import { STATUS_LABEL, displayName, fileUrl, formatDate, isPending, type Upload } from '../uploads'
+import { MAX_TITLE, STATUS_LABEL, deleteUpload, displayName, fileUrl, formatDate, isPending, type Upload } from '../uploads'
 
 function Body({ upload, onRetried }: { upload: Upload; onRetried: () => void }) {
   if (upload.status === 'queued') {
@@ -43,6 +44,64 @@ function Body({ upload, onRetried }: { upload: Upload; onRetried: () => void }) 
   )
 }
 
+function Title({ upload, onRenamed }: { upload: Upload; onRenamed: () => void }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const navigate = useNavigate()
+
+  async function save(e: FormEvent) {
+    e.preventDefault()
+    if (!draft?.trim()) return setError('Enter a name for this song.')
+    setBusy(true)
+    try {
+      await request(`/jobs/${upload.id}`, { method: 'PATCH', json: { title: draft } })
+      setDraft(null)
+      setError('')
+      onRenamed()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (draft === null) {
+    return (
+      <div className="title-row">
+        <h1>{displayName(upload)}</h1>
+        <div className="actions">
+          <button type="button" className="secondary" onClick={() => setDraft(displayName(upload))}>Rename</button>
+          {upload.status !== 'arranging' && (
+            <button type="button" className="secondary danger" onClick={async () => { if (await deleteUpload(upload)) navigate('/songs') }}>
+              Delete
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <form className="rename" onSubmit={save} noValidate>
+      <label className="visually-hidden" htmlFor="song-title">Song name</label>
+      <input
+        id="song-title"
+        className="text-input"
+        maxLength={MAX_TITLE}
+        value={draft}
+        onChange={(e) => { setDraft(e.target.value); setError('') }}
+        onKeyDown={(e) => { if (e.key === 'Escape') setDraft(null) }}
+        aria-invalid={!!error}
+        aria-describedby={error ? 'song-title-error' : undefined}
+        autoFocus
+      />
+      <button type="submit" className="secondary" disabled={busy}>{busy ? 'Saving...' : 'Save'}</button>
+      <button type="button" className="secondary" onClick={() => { setDraft(null); setError('') }}>Cancel</button>
+      {error && <p className="error" id="song-title-error" role="alert">{error}</p>}
+    </form>
+  )
+}
+
 function NotFound() {
   return (
     <>
@@ -76,15 +135,13 @@ export function Song() {
           <p className="notice">Loading...</p>
         ) : (
           <>
+            <Title upload={upload} onRenamed={reload} />
             <div className="song-head">
-              <div>
-                <h1>{displayName(upload)}</h1>
-                <dl className="song-meta">
-                  <div><dt>Level</dt><dd>{upload.level} {LEVELS[upload.level - 1].name}</dd></div>
-                  <div><dt>Uploaded</dt><dd><time dateTime={upload.created_at}>{formatDate(new Date(upload.created_at))}</time></dd></div>
-                  <div><dt>Status</dt><dd className={upload.status === 'failed' ? 'status-failed' : undefined}>{STATUS_LABEL[upload.status]}</dd></div>
-                </dl>
-              </div>
+              <dl className="song-meta">
+                <div><dt>Level</dt><dd>{upload.level} {LEVELS[upload.level - 1].name}</dd></div>
+                <div><dt>Uploaded</dt><dd><time dateTime={upload.created_at}>{formatDate(new Date(upload.created_at))}</time></dd></div>
+                <div><dt>Status</dt><dd className={upload.status === 'failed' ? 'status-failed' : undefined}>{STATUS_LABEL[upload.status]}</dd></div>
+              </dl>
               {upload.status === 'ready' && (
                 <div className="actions">
                   <a href={fileUrl(upload, 'midi')} download className="secondary">MIDI</a>

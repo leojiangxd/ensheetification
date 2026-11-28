@@ -71,7 +71,7 @@ def test_upload_is_stored_safely_and_queued(client):
     response = submit(client, files={"file": ("../../evil name.MP3", b"ID3data", "audio/mpeg")})
     assert response.status_code == 201
     job = response.json()
-    assert (job["title"], job["status"], job["source_kind"], job["level"]) == ("evil name.MP3", "queued", "file", 3)
+    assert (job["title"], job["status"], job["source_kind"], job["level"]) == ("evil name", "queued", "file", 3)
     assert [p.name for p in db.job_dir(job["id"]).iterdir()] == ["source.mp3"]
     assert client.queued == [job["id"]]
     assert [j["id"] for j in client.get("/api/jobs").json()] == [job["id"]]
@@ -125,3 +125,36 @@ def test_worker_failure_is_reported_and_retryable(client, monkeypatch):
 def test_unexpected_errors_stay_generic():
     assert worker.user_message(ValueError("internal detail")) == "Something went wrong while arranging this song."
     assert worker.user_message(ValueError("audio longer than 10 minutes")) == "Songs can be at most 10 minutes long."
+
+
+def test_name_rename_and_delete(client, monkeypatch):
+    register(client)
+    job = submit(client, {"title": "  Moonlight   Sonata ", "url": "https://youtu.be/abc"}).json()
+    assert job["title"] == "Moonlight Sonata"
+    assert submit(client, {"title": "x" * 201, "url": "https://youtu.be/abc"}).status_code == 400
+
+    # a name the user chose survives the worker learning the video title
+    monkeypatch.setattr(worker, "download_youtube", lambda url, out_dir: (out_dir / "source.webm", "Video Title"))
+    monkeypatch.setattr(pipeline, "run", lambda source, out_dir, grid, title: None)
+    worker.process(job["id"])
+    assert client.get(f"/api/jobs/{job['id']}").json()["title"] == "Moonlight Sonata"
+    unnamed = submit(client, {"url": "https://youtu.be/def"}).json()
+    worker.process(unnamed["id"])
+    assert client.get(f"/api/jobs/{unnamed['id']}").json()["title"] == "Video Title"
+
+    assert client.patch(f"/api/jobs/{job['id']}", json={"title": "Op. 27 No. 2"}).json()["title"] == "Op. 27 No. 2"
+    assert client.patch(f"/api/jobs/{job['id']}", json={"title": "  "}).status_code == 400
+
+    db.update_job(unnamed["id"], status="arranging")
+    assert client.delete(f"/api/jobs/{unnamed['id']}").status_code == 409
+
+    client.post("/api/auth/logout")
+    register(client, email="eve@example.com")
+    assert client.patch(f"/api/jobs/{job['id']}", json={"title": "mine"}).status_code == 404
+    assert client.delete(f"/api/jobs/{job['id']}").status_code == 404
+    client.post("/api/auth/logout")
+    client.post("/api/auth/login", json={"email": USER["email"], "password": USER["password"]})
+
+    assert client.delete(f"/api/jobs/{job['id']}").status_code == 204
+    assert client.get(f"/api/jobs/{job['id']}").status_code == 404
+    assert not db.job_dir(job["id"]).exists()

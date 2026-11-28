@@ -42,11 +42,14 @@ def process(job_id: str) -> None:
     db.update_job(job_id, status="arranging", error=None)
     out_dir = db.job_dir(job_id)
     try:
+        title = job["title"]
         if job["source_kind"] == "youtube":
-            source, title = download_youtube(job["source_url"], out_dir)
-            db.update_job(job_id, title=title)
+            source, video_title = download_youtube(job["source_url"], out_dir)
+            if title == job["source_url"]:
+                title = video_title
+                db.set_video_title(job_id, title)
         else:
-            source, title = next(out_dir.glob("source*")), Path(job["title"]).stem
+            source = next(out_dir.glob("source*"))
         pipeline.run(source, out_dir, GRID_FOR_LEVEL[job["level"]], title=title)
     except Exception as error:  # any failure must end the job, never kill the worker thread
         log.exception("job %s failed", job_id)

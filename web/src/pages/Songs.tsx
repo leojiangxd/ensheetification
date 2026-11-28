@@ -4,28 +4,38 @@ import { request, usePolled } from '../api'
 import { Header } from '../components/Header'
 import { SubmitForm } from '../components/SubmitForm'
 import { LEVELS } from '../content'
-import { STATUS_LABEL, displayName, fileUrl, formatDate, isPending, type Upload } from '../uploads'
+import { STATUS_LABEL, deleteUpload, displayName, fileUrl, formatDate, isPending, type Upload } from '../uploads'
 
 const anyPending = (jobs: Upload[]) => jobs.some(isPending)
 
-function Actions({ upload, onRetried }: { upload: Upload; onRetried: () => void }) {
-  if (isPending(upload)) return null
+function Actions({ upload, onChanged }: { upload: Upload; onChanged: () => void }) {
+  if (upload.status === 'arranging') return null
+  const remove = async () => { if (await deleteUpload(upload)) onChanged() }
+  const del = <button type="button" className="secondary danger" onClick={remove}>Delete</button>
+  if (upload.status === 'queued') return del
   if (upload.status === 'failed') {
     async function retry() {
       try {
         await request(`/jobs/${upload.id}/retry`, { method: 'POST' })
-        onRetried()
+        onChanged()
       } catch (error) {
         alert((error as Error).message)
       }
     }
-    return <button type="button" className="secondary" onClick={retry}>Try again</button>
+    return (
+      <>
+        <Link to={`/songs/${upload.id}`} className="secondary">Open</Link>
+        <button type="button" className="secondary" onClick={retry}>Try again</button>
+        {del}
+      </>
+    )
   }
   return (
     <>
       <Link to={`/songs/${upload.id}`} className="secondary">Open</Link>
       <a href={fileUrl(upload, 'midi')} download className="secondary">MIDI</a>
       <a href={fileUrl(upload, 'pdf')} download className="secondary">PDF</a>
+      {del}
     </>
   )
 }
@@ -76,7 +86,7 @@ export function Songs() {
                     <td data-label="Status" className={u.status === 'failed' ? 'status-failed' : undefined} title={u.error ?? undefined}>
                       {STATUS_LABEL[u.status]}
                     </td>
-                    <td><div className="actions"><Actions upload={u} onRetried={reload} /></div></td>
+                    <td><div className="actions"><Actions upload={u} onChanged={reload} /></div></td>
                   </tr>
                 ))}
               </tbody>
