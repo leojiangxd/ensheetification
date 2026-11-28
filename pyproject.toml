@@ -1,5 +1,5 @@
 [project]
-name = "ensheetification"
+name = "ensheetify"
 version = "0.1.0"
 description = "Turn any song into a piano arrangement you can actually play."
 readme = "README.md"

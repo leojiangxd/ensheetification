@@ -1,8 +1,8 @@
-# ensheetification
+# ensheetify
 
 Turn any song into a piano arrangement you can actually play.
 
-Upload an audio file or paste a YouTube link, pick a difficulty level, and ensheetification produces a two-hand piano arrangement with:
+Upload an audio file or paste a YouTube link, pick a difficulty level, and ensheetify produces a two-hand piano arrangement with:
 
 - an in-browser player with a synced, scrolling score
 - a downloadable **MIDI** file
@@ -224,7 +224,7 @@ Burst: 100 songs at once                                       = 2,600 GPU-s
 *Planned.*
 
 ```text
-ensheetification/
+ensheetify/
 ├── web/            # Frontend: upload, level picker, score viewer, player
 ├── api/            # FastAPI service: jobs, auth, progress stream
 ├── workers/
