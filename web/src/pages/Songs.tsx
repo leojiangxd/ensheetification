@@ -84,7 +84,7 @@ export function Songs() {
                     <td>
                       <div className="actions">
                         {u.status !== 'ready' && (
-                          <span className={u.status === 'failed' ? 'status-failed' : undefined} title={u.error ?? undefined}>
+                          <span className={u.status === 'failed' ? 'status status-failed' : 'status'} title={u.error ?? undefined}>
                             {STATUS_LABEL[u.status]}
                           </span>
                         )}

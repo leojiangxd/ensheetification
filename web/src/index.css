@@ -576,6 +576,10 @@ h1 {
   gap: 0.5rem;
 }
 
+.actions .status {
+  margin-right: auto;
+}
+
 .status-failed {
   color: var(--error);
   font-weight: 600;
