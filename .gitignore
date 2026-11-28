@@ -2,4 +2,5 @@
 in/
 out/
 __pycache__/
-*.egg-info/
+*.egg-info/node_modules/
+web/dist/

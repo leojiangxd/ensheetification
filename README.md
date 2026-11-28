@@ -22,6 +22,12 @@ uv run ensheet songs/song.mp3 -o out/   # songs/ is git-ignored; writes out/song
 uv run pytest
 ```
 
+The web frontend (landing page so far; buttons that need the API show an alert) needs Node 22+:
+
+```sh
+cd web && npm install && npm run dev   # http://localhost:5173
+```
+
 The MVP transcribes the whole mix with [basic-pitch](https://github.com/spotify/basic-pitch) (CPU), quantizes to a sixteenth grid (`--grid 4|8|16`), splits hands at middle C, and engraves the PDF with Verovio. No separation, levels, or playability check yet.
 
 ---
