@@ -3,7 +3,6 @@ import { Link, Navigate } from 'react-router'
 import { request, usePolled } from '../api'
 import { Header } from '../components/Header'
 import { SubmitForm } from '../components/SubmitForm'
-import { LEVELS } from '../content'
 import { STATUS_LABEL, deleteUpload, displayName, fileUrl, formatDate, isPending, type Upload } from '../uploads'
 
 const anyPending = (jobs: Upload[]) => jobs.some(isPending)
@@ -71,8 +70,7 @@ export function Songs() {
                   <th scope="col">Song</th>
                   <th scope="col">Level</th>
                   <th scope="col">Uploaded</th>
-                  <th scope="col">Status</th>
-                  <th scope="col"><span className="visually-hidden">Actions</span></th>
+                  <th scope="col">Sheet music</th>
                 </tr>
               </thead>
               <tbody>
@@ -81,12 +79,18 @@ export function Songs() {
                     <th scope="row" className="song-name">
                       {u.source_url ? <a href={u.source_url} target="_blank" rel="noreferrer">{displayName(u)}</a> : displayName(u)}
                     </th>
-                    <td data-label="Level">{u.level} {LEVELS[u.level - 1].name}</td>
+                    <td data-label="Level">{u.level}</td>
                     <td data-label="Uploaded"><time dateTime={u.created_at}>{formatDate(new Date(u.created_at))}</time></td>
-                    <td data-label="Status" className={u.status === 'failed' ? 'status-failed' : undefined} title={u.error ?? undefined}>
-                      {STATUS_LABEL[u.status]}
+                    <td>
+                      <div className="actions">
+                        {u.status !== 'ready' && (
+                          <span className={u.status === 'failed' ? 'status-failed' : undefined} title={u.error ?? undefined}>
+                            {STATUS_LABEL[u.status]}
+                          </span>
+                        )}
+                        <Actions upload={u} onChanged={reload} />
+                      </div>
                     </td>
-                    <td><div className="actions"><Actions upload={u} onChanged={reload} /></div></td>
                   </tr>
                 ))}
               </tbody>

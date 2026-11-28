@@ -547,9 +547,18 @@ h1 {
   white-space: nowrap;
 }
 
+.songs .data-table :is(th, td):not(:first-child) {
+  text-align: center;
+}
+
+.songs .data-table :is(th, td):last-child {
+  text-align: right;
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 0.5rem;
 }
 
@@ -923,8 +932,8 @@ h3 {
     margin-top: 0.5rem;
   }
 
-  .actions:empty {
-    display: none;
+  .songs .data-table :is(th, td):is(:not(:first-child), :last-child) {
+    text-align: left;
   }
 
   .site-header {
