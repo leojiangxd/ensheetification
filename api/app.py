@@ -26,7 +26,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="ensheetification", lifespan=lifespan)
+app = FastAPI(title="ensheetify", lifespan=lifespan)
 router = APIRouter(prefix="/api")
 CurrentUser = Annotated[dict, Depends(auth.current_user)]
 

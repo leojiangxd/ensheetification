@@ -18,7 +18,7 @@ export function Header() {
 
   return (
     <header className="site-header wrap">
-      <Link to="/" className="wordmark">ensheetification</Link>
+      <Link to="/" className="wordmark">ensheetify</Link>
       {pathname === '/' && (
         <nav aria-label="Sections">
           <a href="#levels">Levels</a>

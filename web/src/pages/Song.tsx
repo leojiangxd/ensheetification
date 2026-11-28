@@ -109,7 +109,7 @@ function Title({ upload, onRenamed }: { upload: Upload; onRenamed: () => void })
 function NotFound() {
   return (
     <>
-      <title>Song not found - ensheetification</title>
+      <title>Song not found - ensheetify</title>
       <Header />
       <main className="song wrap">
         <Link to="/songs" className="back">Back to My songs</Link>
@@ -129,7 +129,7 @@ export function Song() {
 
   return (
     <>
-      <title>{`${upload ? displayName(upload) : 'Song'} - ensheetification`}</title>
+      <title>{`${upload ? displayName(upload) : 'Song'} - ensheetify`}</title>
       <Header />
       <main className="song wrap">
         <Link to="/songs" className="back">Back to My songs</Link>

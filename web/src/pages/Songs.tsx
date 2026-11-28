@@ -47,7 +47,7 @@ export function Songs() {
 
   return (
     <>
-      <title>My songs - ensheetification</title>
+      <title>My songs - ensheetify</title>
       <Header />
       <main className="songs wrap">
         <section aria-labelledby="new-title">

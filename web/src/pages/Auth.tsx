@@ -58,7 +58,7 @@ export function Auth({ mode }: { mode: Mode }) {
 
   return (
     <>
-      <title>{`${copy.submit} - ensheetification`}</title>
+      <title>{`${copy.submit} - ensheetify`}</title>
       <Header />
       <main className="auth wrap">
         <div className="auth-copy">
