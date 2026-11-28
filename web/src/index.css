@@ -532,10 +532,20 @@ h1 {
   margin-bottom: 1.5rem;
 }
 
+/* max-width: 0 + width: 100% lets the cell take the leftover width and clamp instead of growing */
 .data-table .song-name {
-  min-width: 10rem;
+  width: 100%;
+  max-width: 0;
   white-space: normal;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.song-name > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 
 .song-name a {
@@ -545,6 +555,10 @@ h1 {
 
 .data-table time {
   white-space: nowrap;
+}
+
+.songs .data-table tbody :is(th, td) {
+  vertical-align: middle;
 }
 
 .songs .data-table :is(th, td):not(:first-child) {
@@ -950,7 +964,7 @@ h3 {
   }
 
   .data-table .song-name {
-    min-width: 0;
+    max-width: none;
   }
 }
 

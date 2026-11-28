@@ -76,8 +76,8 @@ export function Songs() {
               <tbody>
                 {jobs.map((u) => (
                   <tr key={u.id}>
-                    <th scope="row" className="song-name">
-                      {u.source_url ? <a href={u.source_url} target="_blank" rel="noreferrer">{displayName(u)}</a> : displayName(u)}
+                    <th scope="row" className="song-name" title={displayName(u)}>
+                      <span>{u.source_url ? <a href={u.source_url} target="_blank" rel="noreferrer">{displayName(u)}</a> : displayName(u)}</span>
                     </th>
                     <td data-label="Level">{u.level}</td>
                     <td data-label="Uploaded"><time dateTime={u.created_at}>{formatDate(new Date(u.created_at))}</time></td>
