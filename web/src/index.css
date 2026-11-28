@@ -540,7 +540,7 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-.song-name > span {
+.song-name>span {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -894,10 +894,13 @@ h3 {
   }
 }
 
-@media (max-width: 40rem) {
+@media (max-width: 42rem) {
   .site-header nav {
     display: none;
   }
+}
+
+@media (max-width: 40rem) {
   .steps {
     grid-template-columns: 1fr;
   }
@@ -963,10 +966,6 @@ h3 {
   .site-header {
     display: flex;
     justify-content: space-between;
-  }
-
-  .wordmark {
-    font-size: var(--step-0);
   }
 
   .header-end {
