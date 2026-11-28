@@ -1,8 +1,21 @@
-import { Link, NavLink, useLocation } from 'react-router'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router'
+import { useSession } from '../session'
 
 export function Header() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const { user, logout } = useSession()
   const onAuthPage = pathname === '/login' || pathname === '/register'
+
+  async function logOut() {
+    try {
+      await logout()
+      navigate('/')
+    } catch (error) {
+      alert((error as Error).message)
+    }
+  }
+
   return (
     <header className="site-header wrap">
       <Link to="/" className="wordmark">ensheetification</Link>
@@ -15,7 +28,11 @@ export function Header() {
       )}
       <div className="header-end">
         <NavLink to="/songs" className="header-link">My songs</NavLink>
-        {!onAuthPage && <Link to="/login" className="secondary">Log in</Link>}
+        {user ? (
+          <button type="button" className="secondary" onClick={logOut}>Log out</button>
+        ) : (
+          user === null && !onAuthPage && <Link to="/login" className="secondary">Log in</Link>
+        )}
       </div>
     </header>
   )

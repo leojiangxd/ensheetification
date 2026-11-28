@@ -1,11 +1,13 @@
 import { useId, useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
-import { Header } from '../components/Header'
+import { Link, useNavigate } from 'react-router'
+import { request } from '../api'
 import { MIN_PASSWORD, validate, type Errors, type Mode } from '../auth'
+import { Header } from '../components/Header'
+import { useSession, type User } from '../session'
 
 const COPY = {
-  login: { title: 'Welcome back', lede: 'Log in to pick up where you left off.', submit: 'Log in' },
-  register: { title: 'Create your account', lede: 'Sign up to keep your arrangements in one place.', submit: 'Create account' },
+  login: { title: 'Welcome back', lede: 'Log in to pick up where you left off.', submit: 'Log in', busy: 'Logging in...' },
+  register: { title: 'Create your account', lede: 'Sign up to keep your arrangements in one place.', submit: 'Create account', busy: 'Creating account...' },
 }
 
 export function Auth({ mode }: { mode: Mode }) {
@@ -16,20 +18,30 @@ export function Auth({ mode }: { mode: Mode }) {
   // Errors belong to the mode they were found in, so switching tabs clears them but keeps what was typed.
   const [checked, setChecked] = useState<{ mode: Mode; errors: Errors }>({ mode, errors: {} })
   const errors = checked.mode === mode ? checked.errors : {}
+  const [serverError, setServerError] = useState<{ mode: Mode; message: string } | null>(null)
+  const [busy, setBusy] = useState(false)
   const id = useId()
   const copy = COPY[mode]
+  const navigate = useNavigate()
+  const { setUser } = useSession()
 
-  function submit(e: FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const found = validate(mode, name, email, password)
     setChecked({ mode, errors: found })
+    setServerError(null)
     const firstInvalid = (['name', 'email', 'password'] as const).find((k) => found[k])
     if (firstInvalid) return document.getElementById(`${id}-${firstInvalid}`)?.focus()
-    alert(
-      mode === 'login'
-        ? `Log in as ${email.trim()}.\n\nComing soon: this will check your password with the server and sign you in.`
-        : `Create an account for ${name.trim()} (${email.trim()}).\n\nComing soon: this will create the account on the server and sign you in.`,
-    )
+    setBusy(true)
+    try {
+      const body = mode === 'login' ? { email, password } : { name, email, password }
+      setUser(await request<User>(`/auth/${mode}`, { json: body }))
+      navigate('/songs')
+    } catch (error) {
+      setServerError({ mode, message: (error as Error).message })
+    } finally {
+      setBusy(false)
+    }
   }
 
   function field(key: keyof Errors) {
@@ -100,7 +112,8 @@ export function Auth({ mode }: { mode: Mode }) {
           {error('password') ||
             (mode === 'register' && <p className="hint" id={`${id}-password-hint`}>At least {MIN_PASSWORD} characters.</p>)}
 
-          <button type="submit" className="primary">{copy.submit}</button>
+          {serverError?.mode === mode && <p className="error" role="alert">{serverError.message}</p>}
+          <button type="submit" className="primary" disabled={busy}>{busy ? copy.busy : copy.submit}</button>
         </form>
       </main>
     </>

@@ -1,5 +1,8 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router'
+import { ApiError, request } from '../api'
 import { LEVELS } from '../content'
+import type { Upload } from '../uploads'
 import { GrandStaff } from './GrandStaff'
 
 function isYouTubeUrl(value: string) {
@@ -16,6 +19,8 @@ export function SubmitForm({ level, onLevelChange }: { level: number; onLevelCha
   const [url, setUrl] = useState('')
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const navigate = useNavigate()
   const fileInput = useRef<HTMLInputElement>(null)
   const ids = useId()
   const current = LEVELS[level - 1]
@@ -32,14 +37,26 @@ export function SubmitForm({ level, onLevelChange }: { level: number; onLevelCha
     if (fileInput.current) fileInput.current.value = ''
   }
 
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault()
     const link = url.trim()
     if (!file && !link) return setError('Choose an audio file or paste a YouTube link first.')
     if (!file && !isYouTubeUrl(link)) return setError('That is not a YouTube link. Paste one like https://www.youtube.com/watch?v=...')
     setError('')
-    const source = file ? `"${file.name}"` : link
-    alert(`Arrange ${source} at level ${level} (${current.name}).\n\nComing soon: this will upload the song, start a job and show its progress here.`)
+    const form = new FormData()
+    form.set('level', String(level))
+    if (file) form.set('file', file)
+    else form.set('url', link)
+    setBusy(true)
+    try {
+      const job = await request<Upload>('/jobs', { form })
+      navigate(`/songs/${job.id}`)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return navigate('/login')
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -93,7 +110,7 @@ export function SubmitForm({ level, onLevelChange }: { level: number; onLevelCha
       </fieldset>
 
       {error && <p className="error" id={`${ids}-error`} role="alert">{error}</p>}
-      <button type="submit" className="primary">Arrange this song</button>
+      <button type="submit" className="primary" disabled={busy}>{busy ? 'Uploading...' : 'Arrange this song'}</button>
     </form>
   )
 }

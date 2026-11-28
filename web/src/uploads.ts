@@ -1,34 +1,30 @@
+/** A job as returned by the API (api/db.py JOB_FIELDS). */
 export type Upload = {
   id: string
-  source: { kind: 'file'; name: string } | { kind: 'youtube'; url: string }
+  title: string
+  source_kind: 'file' | 'youtube'
+  source_url: string | null
   level: number
-  uploadedAt: string
-  status: 'ready' | 'arranging' | 'failed'
-  durationSec?: number
+  status: 'queued' | 'arranging' | 'ready' | 'failed'
+  error: string | null
+  created_at: string
 }
 
-// shortcut: static sample data, replace with GET /jobs and GET /jobs/:id when the API exists
-export const SAMPLE_UPLOADS: Upload[] = [
-  { id: 'u5', source: { kind: 'youtube', url: 'https://www.youtube.com/watch?v=aBcD3fGh1jK' }, level: 3, uploadedAt: '2026-11-27T14:05:00', status: 'arranging' },
-  { id: 'u4', source: { kind: 'file', name: 'voice-memo-1124.m4a' }, level: 1, uploadedAt: '2026-11-24T19:42:00', status: 'failed' },
-  { id: 'u3', source: { kind: 'file', name: 'wedding-first-dance.mp3' }, level: 4, uploadedAt: '2026-11-20T10:13:00', status: 'ready', durationSec: 214 },
-  { id: 'u2', source: { kind: 'youtube', url: 'https://youtu.be/Zx9Yw8Vu7Ts' }, level: 2, uploadedAt: '2026-11-12T21:30:00', status: 'ready', durationSec: 187 },
-  { id: 'u1', source: { kind: 'file', name: 'band-demo-final.wav' }, level: 5, uploadedAt: '2026-10-30T08:55:00', status: 'ready', durationSec: 251 },
-]
+export const STATUS_LABEL = { queued: 'Queued', arranging: 'Arranging', ready: 'Ready', failed: 'Failed' }
 
-export const STATUS_LABEL = { ready: 'Ready', arranging: 'Arranging', failed: 'Failed' }
+export const isPending = (u: Upload) => u.status === 'queued' || u.status === 'arranging'
+
+export const fileUrl = (u: Upload, kind: 'midi' | 'pdf' | 'musicxml') => `/api/jobs/${u.id}/files/${kind}`
 
 export const formatDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format
-
-export function formatDuration(sec: number) {
-  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
-}
 
 export function youTubeId(url: string) {
   const u = new URL(url)
   return u.searchParams.get('v') ?? u.pathname.slice(1)
 }
 
+/** Files show their name without the extension; a YouTube job still showing its raw URL (before the video title is known) gets a short form. */
 export function displayName(u: Upload) {
-  return u.source.kind === 'file' ? u.source.name : `youtu.be/${youTubeId(u.source.url)}`
+  if (u.source_kind === 'file') return u.title.replace(/\.[^.]+$/, '')
+  return u.source_url && u.title === u.source_url ? `youtu.be/${youTubeId(u.source_url)}` : u.title
 }

@@ -22,11 +22,14 @@ uv run ensheet songs/song.mp3 -o out/   # songs/ is git-ignored; writes out/song
 uv run pytest
 ```
 
-The web frontend (landing page so far; buttons that need the API show an alert) needs Node 22+:
+To run the web app, start the API and the frontend (Node 22+) in two terminals:
 
 ```sh
-cd web && npm install && npm run dev   # http://localhost:5173
+uv run uvicorn api.app:app --reload     # http://localhost:8000, stores everything in data/ (git-ignored)
+cd web && npm install && npm run dev    # http://localhost:5173, proxies /api to the API
 ```
+
+The API is a lean MVP: FastAPI with SQLite, files on local disk, and one background worker thread that runs the pipeline below. Accounts use cookie sessions. Songs come from uploads or YouTube links (`yt-dlp`), and the level picks the quantize grid (level 1 quarters, 2-3 eighths, 4-5 sixteenths).
 
 The MVP transcribes the whole mix with [basic-pitch](https://github.com/spotify/basic-pitch) (CPU), quantizes to a sixteenth grid (`--grid 4|8|16`), splits hands at middle C, and engraves the PDF with Verovio. No separation, levels, or playability check yet.
 

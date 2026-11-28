@@ -11,11 +11,11 @@ SAMPLE_RATE = 22050
 RIGHT_HAND_LOWEST_PITCH = 60  # middle C: >= goes to right hand
 
 
-def run(audio_path: Path, out_dir: Path, grid_subdivision: int = 16) -> list[Path]:
+def run(audio_path: Path, out_dir: Path, grid_subdivision: int = 16, title: str | None = None) -> list[Path]:
     wav_path = decode(audio_path)
     bpm, first_beat_in_seconds = estimate_beats(wav_path)
     score = quantize(transcribe(wav_path), bpm, first_beat_in_seconds, grid_subdivision)
-    return export(score, out_dir, audio_path.stem)
+    return export(score, out_dir, audio_path.stem, title)
 
 
 def decode(audio_path: Path) -> Path:
@@ -91,15 +91,15 @@ def quantize(notes, bpm: float, first_beat_in_seconds: float = 0.0, grid_subdivi
     return score
 
 
-def export(score: stream.Score, out_dir: Path, stem: str) -> list[Path]:
-    """Write .musicxml, .mid and .pdf; return their paths."""
+def export(score: stream.Score, out_dir: Path, stem: str, title: str | None = None) -> list[Path]:
+    """Write .musicxml, .mid and .pdf named after `stem`; return their paths. `title` (default: stem) heads the score."""
     import verovio
     from reportlab.graphics import renderPDF
     from reportlab.pdfgen import canvas
     from svglib.svglib import svg2rlg
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    score.metadata = metadata.Metadata(title=stem, composer="")
+    score.metadata = metadata.Metadata(title=title or stem, composer="")
     musicxml_path = Path(score.write("musicxml", fp=out_dir / f"{stem}.musicxml"))
     midi_path = Path(score.write("midi", fp=out_dir / f"{stem}.mid"))
     pdf_path = out_dir / f"{stem}.pdf"
@@ -111,6 +111,7 @@ def export(score: stream.Score, out_dir: Path, stem: str) -> list[Path]:
     if not toolkit.loadFile(str(musicxml_path)):
         raise RuntimeError("verovio could not load the MusicXML")
     pdf_canvas = canvas.Canvas(str(pdf_path))
+    pdf_canvas.setTitle(title or stem)
     with tempfile.TemporaryDirectory() as tmp_dir:
         for page_number in range(1, toolkit.getPageCount() + 1):
             svg_path = Path(tmp_dir) / f"{page_number}.svg"

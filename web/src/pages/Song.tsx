@@ -1,128 +1,101 @@
-import { useId, useState, useSyncExternalStore } from 'react'
-import { Link, useParams } from 'react-router'
-import { GrandStaff } from '../components/GrandStaff'
+import { Link, Navigate, useParams } from 'react-router'
+import { request, usePolled } from '../api'
 import { Header } from '../components/Header'
 import { LEVELS } from '../content'
-import { SAMPLE_UPLOADS, STATUS_LABEL, displayName, formatDate, formatDuration, type Upload } from '../uploads'
+import { STATUS_LABEL, displayName, fileUrl, formatDate, isPending, type Upload } from '../uploads'
 
-const TOTAL_BARS = 12
-const NARROW = matchMedia('(max-width: 40rem)')
-
-// Like a printed score reflowed for the screen: fewer bars per line on narrow screens.
-function useBarsPerSystem() {
-  const narrow = useSyncExternalStore(
-    (onChange) => {
-      NARROW.addEventListener('change', onChange)
-      return () => NARROW.removeEventListener('change', onChange)
-    },
-    () => NARROW.matches,
-  )
-  return narrow ? 2 : 4
-}
-
-function Player({ upload }: { upload: Upload }) {
-  const duration = upload.durationSec ?? 0
-  const [position, setPosition] = useState(0)
-  const id = useId()
-  return (
-    <div className="player">
-      <button type="button" className="primary play" onClick={() => alert('Coming soon: this will play the arrangement and scroll the score along with it.')}>
-        Play
-      </button>
-      <label htmlFor={`${id}-seek`} className="visually-hidden">Position</label>
-      <input
-        id={`${id}-seek`}
-        className="seek"
-        type="range"
-        min={0}
-        max={duration}
-        value={position}
-        onChange={(e) => setPosition(Number(e.target.value))}
-        aria-valuetext={`${formatDuration(position)} of ${formatDuration(duration)}`}
-      />
-      <span className="time">
-        {formatDuration(position)} / {formatDuration(duration)}
-      </span>
-    </div>
-  )
-}
-
-function Body({ upload }: { upload: Upload }) {
-  const name = displayName(upload)
-  const perSystem = useBarsPerSystem()
+function Body({ upload, onRetried }: { upload: Upload; onRetried: () => void }) {
+  if (upload.status === 'queued') {
+    return <p className="notice">This song is waiting in line. It will start arranging shortly.</p>
+  }
   if (upload.status === 'arranging') {
-    return <p className="notice">This song is still being arranged. Check back in a few minutes.</p>
+    return <p className="notice">This song is being arranged. This page updates when it's ready.</p>
   }
   if (upload.status === 'failed') {
+    async function retry() {
+      try {
+        await request(`/jobs/${upload.id}/retry`, { method: 'POST' })
+        onRetried()
+      } catch (error) {
+        alert((error as Error).message)
+      }
+    }
     return (
       <div className="notice notice-failed">
-        <p>Arranging this song failed.</p>
-        <button type="button" className="secondary" onClick={() => alert(`Coming soon: this will try arranging ${name} again.`)}>Try again</button>
+        <p>Arranging this song failed. {upload.error}</p>
+        <button type="button" className="secondary" onClick={retry}>Try again</button>
       </div>
     )
   }
   return (
     <>
-      <Player upload={upload} />
-      <div className="score" role="group" aria-label="Score">
-        {Array.from({ length: TOTAL_BARS / perSystem }, (_, s) => (
-          <GrandStaff
-            key={s}
-            level={upload.level}
-            bars={perSystem}
-            firstBar={s * perSystem}
-            label={`Sample score, bars ${s * perSystem + 1} to ${(s + 1) * perSystem}`}
-          />
-        ))}
+      <div className="player">
+        <button type="button" className="primary play" onClick={() => alert('Coming soon: this will play the arrangement and scroll the score along with it.')}>
+          Play
+        </button>
       </div>
+      <object className="score-pdf" data={fileUrl(upload, 'pdf')} type="application/pdf" aria-label="Sheet music">
+        <p className="notice">
+          Your browser can't show the PDF here. <a href={fileUrl(upload, 'pdf')} download>Download the sheet music</a> instead.
+        </p>
+      </object>
+    </>
+  )
+}
+
+function NotFound() {
+  return (
+    <>
+      <title>Song not found - ensheetification</title>
+      <Header />
+      <main className="song wrap">
+        <Link to="/songs" className="back">Back to My songs</Link>
+        <h1>Song not found</h1>
+        <p className="notice">This song doesn't exist or was removed. Pick one from My songs.</p>
+      </main>
     </>
   )
 }
 
 export function Song() {
   const { id } = useParams()
-  const upload = SAMPLE_UPLOADS.find((u) => u.id === id)
+  const { data: upload, error, reload } = usePolled(`/jobs/${id}`, isPending)
 
-  if (!upload) {
-    return (
-      <>
-        <title>Song not found - ensheetification</title>
-        <Header />
-        <main className="song wrap">
-          <Link to="/songs" className="back">Back to My songs</Link>
-          <h1>Song not found</h1>
-          <p className="notice">This song doesn't exist or was removed. Pick one from My songs.</p>
-        </main>
-      </>
-    )
-  }
+  if (error?.status === 401) return <Navigate to="/login" replace />
+  if (error?.status === 404) return <NotFound />
 
-  const name = displayName(upload)
-  const level = LEVELS[upload.level - 1]
   return (
     <>
-      <title>{`${name} - ensheetification`}</title>
+      <title>{`${upload ? displayName(upload) : 'Song'} - ensheetification`}</title>
       <Header />
       <main className="song wrap">
         <Link to="/songs" className="back">Back to My songs</Link>
-        <div className="song-head">
-          <div>
-            <h1>{name}</h1>
-            <dl className="song-meta">
-              <div><dt>Level</dt><dd>{upload.level} {level.name}</dd></div>
-              <div><dt>Uploaded</dt><dd><time dateTime={upload.uploadedAt}>{formatDate(new Date(upload.uploadedAt))}</time></dd></div>
-              <div><dt>Status</dt><dd className={upload.status === 'failed' ? 'status-failed' : undefined}>{STATUS_LABEL[upload.status]}</dd></div>
-            </dl>
-          </div>
-          {upload.status === 'ready' && (
-            <div className="actions">
-              <button type="button" className="secondary" onClick={() => alert(`Coming soon: this will download the MIDI file for ${name}.`)}>MIDI</button>
-              <button type="button" className="secondary" onClick={() => alert(`Coming soon: this will download the PDF sheet music for ${name}.`)}>PDF</button>
-              <button type="button" className="secondary" onClick={() => alert(`Coming soon: this will download the MusicXML file for ${name}.`)}>MusicXML</button>
+        {error ? (
+          <p className="notice notice-failed" role="alert">{error.message}</p>
+        ) : !upload ? (
+          <p className="notice">Loading...</p>
+        ) : (
+          <>
+            <div className="song-head">
+              <div>
+                <h1>{displayName(upload)}</h1>
+                <dl className="song-meta">
+                  <div><dt>Level</dt><dd>{upload.level} {LEVELS[upload.level - 1].name}</dd></div>
+                  <div><dt>Uploaded</dt><dd><time dateTime={upload.created_at}>{formatDate(new Date(upload.created_at))}</time></dd></div>
+                  <div><dt>Status</dt><dd className={upload.status === 'failed' ? 'status-failed' : undefined}>{STATUS_LABEL[upload.status]}</dd></div>
+                </dl>
+              </div>
+              {upload.status === 'ready' && (
+                <div className="actions">
+                  <a href={fileUrl(upload, 'midi')} download className="secondary">MIDI</a>
+                  <a href={fileUrl(upload, 'pdf')} download className="secondary">PDF</a>
+                  <a href={fileUrl(upload, 'musicxml')} download className="secondary">MusicXML</a>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <Body upload={upload} />
+            <Body upload={upload} onRetried={reload} />
+          </>
+        )}
       </main>
     </>
   )

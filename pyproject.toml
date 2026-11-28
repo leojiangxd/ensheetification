@@ -12,20 +12,27 @@ dependencies = [
     "verovio",
     "svglib",
     "reportlab",
+    "fastapi>=0.165.0",
+    "uvicorn[standard]>=0.54.0",
+    "python-multipart>=0.0.34",
+    "yt-dlp>=2026.11.23",
 ]
 
 [project.scripts]
 ensheet = "ensheet.cli:main"
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "httpx>=0.29.0",
+    "pytest",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["ensheet"]
+packages = ["ensheet", "api"]
 
 [tool.uv]
 # basic-pitch pulls tensorflow on Windows; 0.31.0 is the last tf-io-gcs release with Windows wheels
